@@ -64,7 +64,7 @@ def receive_messages(client_socket):
             if not data:
                 print("Disconnected from server.")
                 break
-            print(f"Received from server: {data.decode()}")
+            print(f"{data.decode()}")
         except ConnectionResetError:
             print("Disconnected from server.")
             break

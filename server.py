@@ -69,7 +69,7 @@ def handle_client(client_socket, client_address, username):
                 send_private_message(username, recipient_username, message.encode())
             else:
                 print(f"Received from {username}: {decoded_data}")
-                broadcast_message(username, decoded_data.encode())
+                broadcast_message(username, decoded_data)
             
         except ConnectionResetError:
             print(f"Client {client_address} forcibly disconnected")
@@ -79,7 +79,7 @@ def handle_client(client_socket, client_address, username):
 def broadcast_message(sender_username, message):
     for client_socket, client_info in clients.items():
         if client_info["username"] != sender_username:
-            client_socket.sendall(message)
+            client_socket.sendall(f"Sent by {sender_username} : {message}".encode())
 
 def send_private_message(sender_username, recipient_username, message):
     recipient_socket = find_client_socket_by_username(recipient_username)
