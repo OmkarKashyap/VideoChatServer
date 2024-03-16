@@ -126,13 +126,86 @@
 import socket
 import threading
 import ssl
+import hashlib
+
+HashTable = {}
 
 def handle_client(client_socket, client_address, username):
+#     client_socket.send(str.encode('ENTER PASSWORD : ')) # Request Password
+#     password = client_socket.recv(2048)
+#     password = password.decode()
+#     username = username.decode()
+#     password=hashlib.sha256(str.encode(password)).hexdigest() # Password hash using SHA256
+# # REGISTERATION PHASE   
+# # If new user,  regiter in Hashtable Dictionary  
+#     if username not in HashTable:
+#         HashTable[username]=password
+#         client_socket.send(str.encode('Registeration Successful')) 
+#         print('Registered : ',username)
+#         print("{:<8} {:<20}".format('USER','PASSWORD'))
+#         for k, v in HashTable.items():
+#             label, num = k,v
+#             print("{:<8} {:<20}".format(label, num))
+#         print("-------------------------------------------")
+        
+#     else:
+# # If already existing user, check if the entered password is correct
+#         if(HashTable[username] == password):
+#             client_socket.send(str.encode('client_socket Successful')) # Response Code for Connected Client 
+#             print('Connected : ',username)
+#         else:
+#             client_socket.send(str.encode('Login Failed')) # Response code for login failed
+#             print('client_socket denied : ',username)
+    login_attempts = 3  # Number of allowed login attempts
+    while login_attempts > 0:
+        client_socket.send(str.encode('ENTER PASSWORD : '))
+        password = client_socket.recv(2048).decode()
+        password_hash = hashlib.sha256(str.encode(password)).hexdigest()
+        if username not in HashTable:
+            HashTable[username]=password_hash
+            client_socket.send(str.encode('Registeration Successful')) 
+            print('Registered : ',username)
+            print("{:<8} {:<20}".format('USER','PASSWORD'))
+            for k, v in HashTable.items():
+                label, num = k,v
+                print("{:<8} {:<20}".format(label, num))
+            print("-------------------------------------------")
+            handle_authenticated_client(client_socket, client_address, username)
+            return
+        else:
+    # If already existing user, check if the entered password is correct
+            if(HashTable[username] == password_hash):
+                # client_socket.send(str.encode('client_socket Successful')) # Response Code for Connected Client 
+                # print('Connected : ',username)
+                client_socket.send(str.encode('Login Successful'))
+                print(f'Client {username} connected.')
+                handle_authenticated_client(client_socket, client_address, username)
+                return  # Exit the loop on successful login
+            else:
+                # client_socket.send(str.encode('Login Failed')) # Response code for login failed
+                # print('client_socket denied : ',username)
+                login_attempts -= 1
+        # Check if username exists and password matches
+        # if username in HashTable and HashTable[username] == password_hash:
+        #     client_socket.send(str.encode('Login Successful'))
+        #     print(f'Client {username} connected.')
+        #     handle_authenticated_client(client_socket, client_address, username)
+        #     return  # Exit the loop on successful login
+        if login_attempts > 0:
+            client_socket.sendall(f"Incorrect password. You have {login_attempts} attempts remaining.".encode())
+        else:
+            client_socket.sendall(b"Login failed. Maximum attempts reached.")
+            print(f'Client {username} login failed after {login_attempts + 3} attempts.')
+            break  # Exit the loop on failed attempts
+
+    client_socket.close()
+def handle_authenticated_client(client_socket, client_address, username):
     while True:
         try:
             data = client_socket.recv(1024)
             if not data:
                 print(f"Client {client_address} disconnected")
+
                 break
             
             decoded_data = data.decode()
@@ -171,7 +244,7 @@ def find_client_socket_by_username(username):
 
 def main():
     host = '127.0.0.1'
-    port = 1234
+    port = 12345
 
     # Create SSL context and load certificate/key
     context = ssl.create_default_context()
@@ -183,6 +256,7 @@ def main():
     print("Server listening...")
 
     try:
+        
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.load_cert_chain(certfile='server-cert.pem', keyfile='server-key.pem')
         while True:
@@ -191,7 +265,9 @@ def main():
 
             # Wrap the client socket with SSL context
             client_socket = context.wrap_socket(client_socket, server_side=True)
-            username = client_socket.recv(1024).decode()
+            client_socket.send(str.encode('ENTER USERNAME : ')) # Request Username
+            username = client_socket.recv(2048)
+            # username = client_socket.recv(1024).decode()
             clients[client_socket] = {"address": client_address, "username": username}
 
             client_thread = threading.Thread(target=handle_client, args=(client_socket, client_address, username))
